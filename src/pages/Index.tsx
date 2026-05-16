@@ -35,10 +35,15 @@ const INITIAL_STATE: GameState = {
     { id: 'sushi', name: 'Суши', emoji: '🍣', price: 50, hunger: 50, mood: 20, count: 0 },
   ],
   enotSkins: [
-    { id: 'default', name: 'Обычный', emoji: '🦝', price: 0, owned: true },
-    { id: 'ninja', name: 'Ниндзя', emoji: '🥷', price: 200, owned: false },
-    { id: 'royal', name: 'Королевский', emoji: '👑', price: 500, owned: false },
-    { id: 'snow', name: 'Снежный', emoji: '❄️', price: 300, owned: false },
+    { id: 'vanya',     name: 'Ваня',      emoji: '🦝', price: 0,    owned: true,  rarity: 'обычный'    },
+    { id: 'ricky',     name: 'Рикки',     emoji: '🦝', price: 50,   owned: false, rarity: 'обычный'    },
+    { id: 'yutik',     name: 'Ю Тик',     emoji: '🦝', price: 150,  owned: false, rarity: 'редкий'     },
+    { id: 'eloks',     name: 'Элокс',     emoji: '🦝', price: 300,  owned: false, rarity: 'редкий'     },
+    { id: 'samos',     name: 'Самос',     emoji: '🦝', price: 500,  owned: false, rarity: 'эпический'  },
+    { id: 'bandit',    name: 'Бандит',    emoji: '🦝', price: 700,  owned: false, rarity: 'эпический'  },
+    { id: 'stripey',   name: 'Полосатик', emoji: '🦝', price: 1000, owned: false, rarity: 'мифический' },
+    { id: 'rinsun',    name: 'Полоскун',  emoji: '🦝', price: 1500, owned: false, rarity: 'легендарный'},
+    { id: 'gosha',     name: 'Гоша',      emoji: '🦝', price: 5000, owned: false, rarity: 'ультра'     },
   ],
   achievements: [
     { id: 'first_feed', name: 'Первая кормёжка', desc: 'Покорми енота первый раз', emoji: '🍽️', unlocked: false, condition: 'Покорми енота 1 раз' },
@@ -273,9 +278,10 @@ export default function Index() {
           <span className="font-rubik font-bold text-lg text-white">EnotGame</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="coin-badge">
-            <span>🪙</span>
-            <span>{state.coins}</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl" style={{ background: 'hsl(var(--enot-surface2))' }}>
+            <span style={{ fontSize: 18 }}>🦝</span>
+            <span style={{ fontSize: 16 }}>🪙</span>
+            <span className="font-rubik font-bold text-white text-sm">{state.coins}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm">
             <span style={{ color: 'hsl(var(--muted-foreground))' }}>Ур.</span>

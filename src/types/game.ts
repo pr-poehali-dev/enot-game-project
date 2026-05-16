@@ -19,12 +19,15 @@ export interface FoodItem {
   count: number;
 }
 
+export type SkinRarity = 'обычный' | 'редкий' | 'эпический' | 'мифический' | 'легендарный' | 'ультра';
+
 export interface EnotSkin {
   id: string;
   name: string;
   emoji: string;
   price: number;
   owned: boolean;
+  rarity: SkinRarity;
 }
 
 export interface Achievement {

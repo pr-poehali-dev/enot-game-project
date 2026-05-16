@@ -8,38 +8,41 @@ interface Props {
   dispatch: (action: GameAction) => void;
 }
 
-type ActiveGame = null | 'walk' | 'football' | 'basketball' | 'mines' | 'clicker';
+type ActiveGame = null | 'mines' | 'clicker';
 
 const activities = [
-  { id: 'walk', name: 'Прогулка', emoji: '🌳', desc: 'Настроение +15', reward: 0, mood: 15, energy: -10, type: 'fun' },
-  { id: 'football', name: 'Футбол', emoji: '⚽', desc: 'Настроение +20', reward: 0, mood: 20, energy: -20, type: 'fun' },
-  { id: 'basketball', name: 'Баскетбол', emoji: '🏀', desc: 'Настроение +25', reward: 0, mood: 25, energy: -25, type: 'fun' },
+  { id: 'walk',       name: 'Прогулка',  emoji: '🌳', desc: 'Настроение +15',  mood: 15, energy: 10, anim: '🌳🦝🌲' },
+  { id: 'football',   name: 'Футбол',    emoji: '⚽', desc: 'Настроение +20',  mood: 20, energy: 20, anim: '⚽🦝🥅' },
+  { id: 'basketball', name: 'Баскетбол', emoji: '🏀', desc: 'Настроение +25',  mood: 25, energy: 25, anim: '🏀🦝🏆' },
 ];
 
 const miniGames = [
-  { id: 'mines', name: 'Сапёр', emoji: '💣', desc: 'Заработай монеты' },
+  { id: 'mines',   name: 'Мины',   emoji: '💣', desc: 'Рискни — заработай' },
   { id: 'clicker', name: 'Кликер', emoji: '👆', desc: 'Кликай и зарабатывай' },
 ];
 
 export default function GamesTab({ gameState, dispatch }: Props) {
   const [activeGame, setActiveGame] = useState<ActiveGame>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
 
-  const handleActivity = (id: string) => {
-    const act = activities.find(a => a.id === id);
-    if (!act) return;
+  const handleActivity = (act: typeof activities[0]) => {
     if (gameState.enot.energy < 10) {
       setResult('Енот слишком устал! Дай ему отдохнуть 😴');
-      setTimeout(() => setResult(null), 2000);
+      setTimeout(() => setResult(null), 2500);
       return;
     }
-    dispatch({ type: 'PLAY_GAME', game: id });
-    setResult(`${act.emoji} ${act.name}! Настроение +${act.mood}`);
-    setTimeout(() => setResult(null), 2000);
+    setPlayingId(act.id);
+    setTimeout(() => {
+      dispatch({ type: 'PLAY_GAME', game: act.id });
+      setResult(`${act.anim}  +${act.mood} настроения!`);
+      setPlayingId(null);
+      setTimeout(() => setResult(null), 2500);
+    }, 1200);
   };
 
   if (activeGame === 'mines') {
-    return <MinesGame onExit={() => setActiveGame(null)} dispatch={dispatch} />;
+    return <MinesGame onExit={() => setActiveGame(null)} dispatch={dispatch} coins={gameState.coins} />;
   }
   if (activeGame === 'clicker') {
     return <ClickerGame onExit={() => setActiveGame(null)} dispatch={dispatch} />;
@@ -49,7 +52,7 @@ export default function GamesTab({ gameState, dispatch }: Props) {
     <div className="flex flex-col gap-5 animate-slide-up">
       {result && (
         <div
-          className="card-game text-center font-semibold animate-bounce-in"
+          className="card-game text-center font-semibold text-lg animate-bounce-in"
           style={{ borderColor: 'hsl(var(--primary)/0.5)', color: 'hsl(var(--primary))' }}
         >
           {result}
@@ -60,23 +63,46 @@ export default function GamesTab({ gameState, dispatch }: Props) {
       <div>
         <h3 className="font-rubik font-semibold mb-3">🎉 Активности</h3>
         <div className="flex flex-col gap-3">
-          {activities.map(a => (
-            <div key={a.id} className="card-game flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span style={{ fontSize: 40 }}>{a.emoji}</span>
-                <div>
-                  <p className="font-semibold text-white">{a.name}</p>
-                  <p className="text-xs" style={{ color: 'hsl(var(--muted-foreground))' }}>{a.desc} · Энергия -10</p>
-                </div>
-              </div>
-              <button
-                className="btn-primary text-xs px-4 py-2"
-                onClick={() => handleActivity(a.id)}
+          {activities.map(a => {
+            const isPlaying = playingId === a.id;
+            return (
+              <div
+                key={a.id}
+                className="card-game flex items-center justify-between transition-all duration-300"
+                style={{
+                  borderColor: isPlaying ? 'hsl(var(--primary)/0.7)' : undefined,
+                  transform: isPlaying ? 'scale(1.02)' : undefined,
+                }}
               >
-                Играть
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-3">
+                  <span
+                    style={{
+                      fontSize: 40,
+                      display: 'inline-block',
+                      animation: isPlaying ? 'bounce 0.5s infinite alternate' : undefined,
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    {a.emoji}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">{a.name}</p>
+                    <p className="text-xs" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                      {a.desc} · Энергия −{a.energy}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="btn-primary text-xs px-4 py-2 transition-all"
+                  style={{ opacity: isPlaying ? 0.6 : 1 }}
+                  disabled={isPlaying}
+                  onClick={() => handleActivity(a)}
+                >
+                  {isPlaying ? '...' : 'Играть'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
