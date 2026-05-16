@@ -54,6 +54,9 @@ const INITIAL_STATE: GameState = {
   totalFed: 0,
   totalGames: 0,
   tab: 'profile',
+  lastFed: 0,
+  lastPlayed: 0,
+  lastSlept: 0,
 };
 
 function clamp(v: number, min = 0, max = 100) {
@@ -82,6 +85,8 @@ function reducer(state: GameState, action: GameAction): GameState {
       };
 
     case 'QUICK_FEED': {
+      const now = Date.now();
+      if (now - state.lastFed < 30000) return state;
       const apple = state.food.find(f => f.id === 'apple');
       if (!apple || apple.count === 0) return state;
       return {
@@ -89,18 +94,26 @@ function reducer(state: GameState, action: GameAction): GameState {
         food: state.food.map(f => f.id === 'apple' ? { ...f, count: f.count - 1 } : f),
         enot: addXP({ ...state.enot, hunger: clamp(state.enot.hunger + apple.hunger), mood: clamp(state.enot.mood + apple.mood) }, 5),
         totalFed: state.totalFed + 1,
+        lastFed: now,
       };
     }
 
-    case 'QUICK_PLAY':
+    case 'QUICK_PLAY': {
+      const now = Date.now();
+      if (now - state.lastPlayed < 20000) return state;
       return {
         ...state,
         enot: addXP({ ...state.enot, mood: clamp(state.enot.mood + 10), energy: clamp(state.enot.energy - 10) }, 8),
         totalGames: state.totalGames + 1,
+        lastPlayed: now,
       };
+    }
 
-    case 'QUICK_SLEEP':
-      return { ...state, enot: { ...state.enot, energy: clamp(state.enot.energy + 40), health: clamp(state.enot.health + 5) } };
+    case 'QUICK_SLEEP': {
+      const now = Date.now();
+      if (now - state.lastSlept < 45000) return state;
+      return { ...state, enot: { ...state.enot, energy: clamp(state.enot.energy + 40), health: clamp(state.enot.health + 5) }, lastSlept: now };
+    }
 
     case 'BUY_FOOD': {
       const item = state.food.find(f => f.id === action.id);
@@ -148,14 +161,10 @@ function reducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'CLAIM_BONUS': {
-      const now = Date.now();
-      const newStreak = state.bonusStreak + 1;
-      const bonus = 15 + state.bonusStreak * 5;
       return {
         ...state,
-        coins: state.coins + bonus,
-        lastBonus: now,
-        bonusStreak: newStreak,
+        lastBonus: Date.now(),
+        bonusStreak: state.bonusStreak + 1,
       };
     }
 

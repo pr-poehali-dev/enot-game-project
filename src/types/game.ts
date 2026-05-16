@@ -49,6 +49,9 @@ export interface GameState {
   totalFed: number;
   totalGames: number;
   tab: string;
+  lastFed: number;
+  lastPlayed: number;
+  lastSlept: number;
 }
 
 export type GameAction =

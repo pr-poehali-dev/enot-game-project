@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { GameState, GameAction } from '@/types/game';
 
@@ -20,8 +20,65 @@ const StatBar = ({ value, max, color }: { value: number; max: number; color: str
   </div>
 );
 
+function useCooldown(lastTs: number, durationMs: number) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+  const elapsed = Date.now() - lastTs;
+  const remaining = Math.max(0, durationMs - elapsed);
+  const ready = remaining === 0;
+  const secs = Math.ceil(remaining / 1000);
+  return { ready, secs };
+}
+
+function CooldownButton({
+  label, icon, lastTs, cooldownMs, onClick, color,
+}: {
+  label: string; icon: string; lastTs: number; cooldownMs: number; onClick: () => void; color: string;
+}) {
+  const { ready, secs } = useCooldown(lastTs, cooldownMs);
+  const pct = Math.max(0, Math.min(100, ((cooldownMs - Math.max(0, cooldownMs - (Date.now() - lastTs))) / cooldownMs) * 100));
+
+  return (
+    <button
+      className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-95 relative overflow-hidden"
+      style={{
+        background: ready ? `${color}22` : 'hsl(var(--enot-surface2))',
+        border: `1.5px solid ${ready ? color : 'transparent'}`,
+        cursor: ready ? 'pointer' : 'not-allowed',
+        opacity: ready ? 1 : 0.75,
+      }}
+      onClick={() => ready && onClick()}
+    >
+      {/* прогресс-ринг снизу */}
+      {!ready && (
+        <div
+          className="absolute bottom-0 left-0 h-1 transition-all duration-500"
+          style={{ width: `${pct}%`, background: color, borderRadius: '0 0 0 12px' }}
+        />
+      )}
+      <span style={{ fontSize: 28 }}>{icon}</span>
+      <span className="text-xs font-semibold" style={{ color: ready ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))' }}>
+        {label}
+      </span>
+      {!ready && (
+        <span className="text-[10px] font-bold" style={{ color }}>
+          {secs}с
+        </span>
+      )}
+      {ready && (
+        <span className="text-[10px] font-bold" style={{ color }}>
+          Готово!
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function ProfileTab({ gameState, dispatch }: Props) {
-  const { enot, activeEnot } = gameState;
+  const { enot, activeEnot, lastFed, lastPlayed, lastSlept } = gameState;
   const emoji = ENOT_EMOJIS[activeEnot] || '🦝';
   const [popped, setPopped] = useState(false);
 
@@ -42,12 +99,6 @@ export default function ProfileTab({ gameState, dispatch }: Props) {
     { label: 'Настроение', value: enot.mood, max: 100, color: 'hsl(42,95%,55%)', icon: 'Smile' },
     { label: 'Сытость', value: enot.hunger, max: 100, color: 'hsl(210,80%,58%)', icon: 'UtensilsCrossed' },
     { label: 'Энергия', value: enot.energy, max: 100, color: 'hsl(270,70%,65%)', icon: 'Zap' },
-  ];
-
-  const quickActions = [
-    { label: 'Покормить', icon: '🍖', action: { type: 'QUICK_FEED' as const } },
-    { label: 'Поиграть', icon: '🎾', action: { type: 'QUICK_PLAY' as const } },
-    { label: 'Поспать', icon: '😴', action: { type: 'QUICK_SLEEP' as const } },
   ];
 
   return (
@@ -99,21 +150,37 @@ export default function ProfileTab({ gameState, dispatch }: Props) {
         ))}
       </div>
 
-      {/* Быстрые действия */}
+      {/* Действия с кулдауном */}
       <div className="card-game">
-        <h3 className="font-rubik font-semibold mb-3">Быстрые действия</h3>
+        <h3 className="font-rubik font-semibold mb-1">Уход за енотом</h3>
+        <p className="text-xs mb-3" style={{ color: 'hsl(var(--muted-foreground))' }}>
+          Кормить — 30с · Играть — 20с · Спать — 45с
+        </p>
         <div className="grid grid-cols-3 gap-2">
-          {quickActions.map(a => (
-            <button
-              key={a.label}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-95 hover:opacity-90"
-              style={{ background: 'hsl(var(--enot-surface2))' }}
-              onClick={() => dispatch(a.action)}
-            >
-              <span style={{ fontSize: 28 }}>{a.icon}</span>
-              <span className="text-xs font-medium" style={{ color: 'hsl(var(--muted-foreground))' }}>{a.label}</span>
-            </button>
-          ))}
+          <CooldownButton
+            label="Покормить"
+            icon="🍖"
+            lastTs={lastFed}
+            cooldownMs={30000}
+            color="hsl(210,80%,58%)"
+            onClick={() => dispatch({ type: 'QUICK_FEED' })}
+          />
+          <CooldownButton
+            label="Поиграть"
+            icon="🎾"
+            lastTs={lastPlayed}
+            cooldownMs={20000}
+            color="hsl(42,95%,55%)"
+            onClick={() => dispatch({ type: 'QUICK_PLAY' })}
+          />
+          <CooldownButton
+            label="Поспать"
+            icon="😴"
+            lastTs={lastSlept}
+            cooldownMs={45000}
+            color="hsl(270,70%,65%)"
+            onClick={() => dispatch({ type: 'QUICK_SLEEP' })}
+          />
         </div>
       </div>
     </div>
