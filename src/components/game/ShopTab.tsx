@@ -1,0 +1,136 @@
+import React, { useState } from 'react';
+import { GameState, GameAction } from '@/types/game';
+
+interface Props {
+  gameState: GameState;
+  dispatch: (action: GameAction) => void;
+}
+
+const FOOD_SHOP = [
+  { id: 'fish', name: 'Рыбка', emoji: '🐟', price: 10, hunger: 25, mood: 5 },
+  { id: 'berry', name: 'Ягоды', emoji: '🍓', price: 8, hunger: 15, mood: 10 },
+  { id: 'meat', name: 'Мясо', emoji: '🥩', price: 20, hunger: 40, mood: 8 },
+  { id: 'cake', name: 'Тортик', emoji: '🎂', price: 35, hunger: 20, mood: 30 },
+  { id: 'apple', name: 'Яблоко', emoji: '🍎', price: 5, hunger: 10, mood: 5 },
+  { id: 'sushi', name: 'Суши', emoji: '🍣', price: 50, hunger: 50, mood: 20 },
+];
+
+const SKINS_SHOP = [
+  { id: 'default', name: 'Обычный', emoji: '🦝', price: 0 },
+  { id: 'ninja', name: 'Ниндзя', emoji: '🥷', price: 200 },
+  { id: 'royal', name: 'Королевский', emoji: '👑', price: 500 },
+  { id: 'snow', name: 'Снежный', emoji: '❄️', price: 300 },
+];
+
+export default function ShopTab({ gameState, dispatch }: Props) {
+  const [tab, setTab] = useState<'food' | 'skins'>('food');
+  const { coins, food, enotSkins } = gameState;
+
+  const getOwnedCount = (id: string) => food.find(f => f.id === id)?.count ?? 0;
+
+  return (
+    <div className="flex flex-col gap-5 animate-slide-up">
+      {/* Монеты */}
+      <div className="card-game flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium" style={{ color: 'hsl(var(--muted-foreground))' }}>Твой баланс</p>
+          <p className="font-rubik font-bold text-2xl text-white">{coins} <span style={{ color: 'hsl(var(--enot-gold))' }}>монет</span></p>
+        </div>
+        <span style={{ fontSize: 48 }}>🪙</span>
+      </div>
+
+      {/* Переключатель */}
+      <div className="flex p-1 rounded-2xl gap-1" style={{ background: 'hsl(var(--enot-surface))' }}>
+        {(['food', 'skins'] as const).map(t => (
+          <button
+            key={t}
+            className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200"
+            style={{
+              background: tab === t ? 'hsl(var(--enot-surface2))' : 'transparent',
+              color: tab === t ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+            }}
+            onClick={() => setTab(t)}
+          >
+            {t === 'food' ? '🍖 Еда' : '🎨 Скины'}
+          </button>
+        ))}
+      </div>
+
+      {/* Еда */}
+      {tab === 'food' && (
+        <div className="grid grid-cols-2 gap-3">
+          {FOOD_SHOP.map(item => {
+            const owned = getOwnedCount(item.id);
+            const canBuy = coins >= item.price;
+            return (
+              <div key={item.id} className="card-game flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span style={{ fontSize: 40 }}>{item.emoji}</span>
+                  {owned > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: 'hsl(var(--primary)/0.2)', color: 'hsl(var(--primary))' }}>
+                      ×{owned}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-white">{item.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                    🍖+{item.hunger} 😊+{item.mood}
+                  </p>
+                </div>
+                <button
+                  className="btn-gold text-xs py-2 w-full"
+                  disabled={!canBuy}
+                  style={{ opacity: canBuy ? 1 : 0.4, cursor: canBuy ? 'pointer' : 'not-allowed' }}
+                  onClick={() => dispatch({ type: 'BUY_FOOD', id: item.id })}
+                >
+                  🪙 {item.price}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Скины */}
+      {tab === 'skins' && (
+        <div className="grid grid-cols-2 gap-3">
+          {SKINS_SHOP.map(skin => {
+            const owned = enotSkins.find(s => s.id === skin.id)?.owned ?? (skin.id === 'default');
+            const isActive = gameState.activeEnot === skin.id;
+            const canBuy = coins >= skin.price;
+            return (
+              <div key={skin.id} className="card-game flex flex-col gap-3 relative" style={{ borderColor: isActive ? 'hsl(var(--primary)/0.6)' : undefined }}>
+                {isActive && (
+                  <div className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: 'hsl(var(--primary)/0.2)', color: 'hsl(var(--primary))' }}>
+                    Активен
+                  </div>
+                )}
+                <span style={{ fontSize: 52 }}>{skin.emoji}</span>
+                <p className="font-semibold text-sm text-white">{skin.name}</p>
+                {owned ? (
+                  <button
+                    className={isActive ? 'btn-secondary text-xs py-2 w-full' : 'btn-primary text-xs py-2 w-full'}
+                    onClick={() => dispatch({ type: 'SET_ACTIVE_ENOT', id: skin.id })}
+                    disabled={isActive}
+                  >
+                    {isActive ? '✓ Активирован' : 'Выбрать'}
+                  </button>
+                ) : (
+                  <button
+                    className="btn-gold text-xs py-2 w-full"
+                    disabled={!canBuy}
+                    style={{ opacity: canBuy ? 1 : 0.4, cursor: canBuy ? 'pointer' : 'not-allowed' }}
+                    onClick={() => dispatch({ type: 'BUY_SKIN', id: skin.id })}
+                  >
+                    🪙 {skin.price}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

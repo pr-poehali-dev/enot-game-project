@@ -7,6 +7,7 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+			"./1778927168296354458.html"
 	],
 	prefix: "",
 	theme: {
@@ -89,6 +90,10 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
+			},
+			fontFamily: {
+				'golos': ['Golos Text', 'sans-serif'],
+				'rubik': ['Rubik', 'sans-serif'],
 			}
 		}
 	},
