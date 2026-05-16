@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect } from 'react';
+import React, { useReducer, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { GameState, GameAction } from '@/types/game';
 import ProfileTab from '@/components/game/ProfileTab';
@@ -9,6 +9,9 @@ import BonusTab from '@/components/game/BonusTab';
 import AchievementsTab from '@/components/game/AchievementsTab';
 
 export type { GameState, GameAction };
+
+const SAVE_KEY = 'enotgame_save_v1';
+const COOLDOWN_MS = 30 * 60 * 1000; // 30 минут
 
 const INITIAL_STATE: GameState = {
   coins: 100,
@@ -59,6 +62,39 @@ const INITIAL_STATE: GameState = {
   lastSlept: 0,
 };
 
+function loadState(): GameState {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return INITIAL_STATE;
+    const saved = JSON.parse(raw) as Partial<GameState>;
+    // Мержим: данные из сохранения поверх начального состояния
+    // Это защищает от отсутствия новых полей при обновлениях игры
+    return {
+      ...INITIAL_STATE,
+      ...saved,
+      enot: { ...INITIAL_STATE.enot, ...(saved.enot ?? {}) },
+      // Список еды: сохраняем count, остальное из INITIAL (защита от обновлений)
+      food: INITIAL_STATE.food.map(f => {
+        const saved_f = (saved.food ?? []).find(sf => sf.id === f.id);
+        return saved_f ? { ...f, count: saved_f.count } : f;
+      }),
+      // Скины: сохраняем owned
+      enotSkins: INITIAL_STATE.enotSkins.map(s => {
+        const saved_s = (saved.enotSkins ?? []).find(ss => ss.id === s.id);
+        return saved_s ? { ...s, owned: saved_s.owned } : s;
+      }),
+      // Достижения: сохраняем unlocked
+      achievements: INITIAL_STATE.achievements.map(a => {
+        const saved_a = (saved.achievements ?? []).find(sa => sa.id === a.id);
+        return saved_a ? { ...a, unlocked: saved_a.unlocked } : a;
+      }),
+      tab: 'profile', // всегда стартуем с профиля
+    };
+  } catch {
+    return INITIAL_STATE;
+  }
+}
+
 function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
 }
@@ -86,7 +122,7 @@ function reducer(state: GameState, action: GameAction): GameState {
 
     case 'QUICK_FEED': {
       const now = Date.now();
-      if (now - state.lastFed < 30000) return state;
+      if (now - state.lastFed < COOLDOWN_MS) return state;
       const apple = state.food.find(f => f.id === 'apple');
       if (!apple || apple.count === 0) return state;
       return {
@@ -100,7 +136,7 @@ function reducer(state: GameState, action: GameAction): GameState {
 
     case 'QUICK_PLAY': {
       const now = Date.now();
-      if (now - state.lastPlayed < 20000) return state;
+      if (now - state.lastPlayed < COOLDOWN_MS) return state;
       return {
         ...state,
         enot: addXP({ ...state.enot, mood: clamp(state.enot.mood + 10), energy: clamp(state.enot.energy - 10) }, 8),
@@ -111,8 +147,12 @@ function reducer(state: GameState, action: GameAction): GameState {
 
     case 'QUICK_SLEEP': {
       const now = Date.now();
-      if (now - state.lastSlept < 45000) return state;
-      return { ...state, enot: { ...state.enot, energy: clamp(state.enot.energy + 40), health: clamp(state.enot.health + 5) }, lastSlept: now };
+      if (now - state.lastSlept < COOLDOWN_MS) return state;
+      return {
+        ...state,
+        enot: { ...state.enot, energy: clamp(state.enot.energy + 40), health: clamp(state.enot.health + 5) },
+        lastSlept: now,
+      };
     }
 
     case 'BUY_FOOD': {
@@ -160,16 +200,15 @@ function reducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'CLAIM_BONUS': {
+    case 'CLAIM_BONUS':
       return {
         ...state,
         lastBonus: Date.now(),
         bonusStreak: state.bonusStreak + 1,
       };
-    }
 
     case 'ADD_COINS':
-      return { ...state, coins: state.coins + action.amount, totalClicks: state.totalClicks + (action.amount > 0 ? 1 : 0) };
+      return { ...state, coins: state.coins + action.amount };
 
     case 'SET_TAB':
       return { ...state, tab: action.tab };
@@ -177,11 +216,6 @@ function reducer(state: GameState, action: GameAction): GameState {
     default:
       return state;
   }
-}
-
-// fix duplicate bonusStreak
-function safeReducer(state: GameState, action: GameAction): GameState {
-  return reducer(state, action);
 }
 
 const TABS = [
@@ -194,14 +228,21 @@ const TABS = [
 ];
 
 export default function Index() {
-  const [state, dispatch] = useReducer(safeReducer, INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Автосохранение с дебаунсом 1с после каждого изменения
   useEffect(() => {
-    const id = setInterval(() => {
-      dispatch({ type: 'ADD_COINS', amount: 0 });
-    }, 60000);
-    return () => clearInterval(id);
-  }, []);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      } catch {
+        // ignore quota errors
+      }
+    }, 1000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [state]);
 
   const renderTab = () => {
     switch (state.tab) {

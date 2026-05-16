@@ -23,14 +23,17 @@ const StatBar = ({ value, max, color }: { value: number; max: number; color: str
 function useCooldown(lastTs: number, durationMs: number) {
   const [, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 500);
+    const id = setInterval(() => setTick(t => t + 1), 5000);
     return () => clearInterval(id);
   }, []);
   const elapsed = Date.now() - lastTs;
   const remaining = Math.max(0, durationMs - elapsed);
   const ready = remaining === 0;
-  const secs = Math.ceil(remaining / 1000);
-  return { ready, secs };
+  const totalSecs = Math.ceil(remaining / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  const label = mins > 0 ? `${mins}м ${String(secs).padStart(2, '0')}с` : `${secs}с`;
+  return { ready, label };
 }
 
 function CooldownButton({
@@ -38,8 +41,9 @@ function CooldownButton({
 }: {
   label: string; icon: string; lastTs: number; cooldownMs: number; onClick: () => void; color: string;
 }) {
-  const { ready, secs } = useCooldown(lastTs, cooldownMs);
-  const pct = Math.max(0, Math.min(100, ((cooldownMs - Math.max(0, cooldownMs - (Date.now() - lastTs))) / cooldownMs) * 100));
+  const { ready, label: timerLabel } = useCooldown(lastTs, cooldownMs);
+  const elapsed = Date.now() - lastTs;
+  const pct = Math.max(0, Math.min(100, (Math.min(elapsed, cooldownMs) / cooldownMs) * 100));
 
   return (
     <button
@@ -52,7 +56,6 @@ function CooldownButton({
       }}
       onClick={() => ready && onClick()}
     >
-      {/* прогресс-ринг снизу */}
       {!ready && (
         <div
           className="absolute bottom-0 left-0 h-1 transition-all duration-500"
@@ -63,16 +66,9 @@ function CooldownButton({
       <span className="text-xs font-semibold" style={{ color: ready ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))' }}>
         {label}
       </span>
-      {!ready && (
-        <span className="text-[10px] font-bold" style={{ color }}>
-          {secs}с
-        </span>
-      )}
-      {ready && (
-        <span className="text-[10px] font-bold" style={{ color }}>
-          Готово!
-        </span>
-      )}
+      <span className="text-[10px] font-bold" style={{ color }}>
+        {ready ? 'Готово!' : timerLabel}
+      </span>
     </button>
   );
 }
@@ -154,14 +150,14 @@ export default function ProfileTab({ gameState, dispatch }: Props) {
       <div className="card-game">
         <h3 className="font-rubik font-semibold mb-1">Уход за енотом</h3>
         <p className="text-xs mb-3" style={{ color: 'hsl(var(--muted-foreground))' }}>
-          Кормить — 30с · Играть — 20с · Спать — 45с
+          Каждое действие доступно раз в 30 минут
         </p>
         <div className="grid grid-cols-3 gap-2">
           <CooldownButton
             label="Покормить"
             icon="🍖"
             lastTs={lastFed}
-            cooldownMs={30000}
+            cooldownMs={30 * 60 * 1000}
             color="hsl(210,80%,58%)"
             onClick={() => dispatch({ type: 'QUICK_FEED' })}
           />
@@ -169,7 +165,7 @@ export default function ProfileTab({ gameState, dispatch }: Props) {
             label="Поиграть"
             icon="🎾"
             lastTs={lastPlayed}
-            cooldownMs={20000}
+            cooldownMs={30 * 60 * 1000}
             color="hsl(42,95%,55%)"
             onClick={() => dispatch({ type: 'QUICK_PLAY' })}
           />
@@ -177,7 +173,7 @@ export default function ProfileTab({ gameState, dispatch }: Props) {
             label="Поспать"
             icon="😴"
             lastTs={lastSlept}
-            cooldownMs={45000}
+            cooldownMs={30 * 60 * 1000}
             color="hsl(270,70%,65%)"
             onClick={() => dispatch({ type: 'QUICK_SLEEP' })}
           />
