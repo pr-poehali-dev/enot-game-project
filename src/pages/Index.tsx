@@ -177,6 +177,8 @@ function reducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'FEED_ENOT': {
+      const now = Date.now();
+      if (now - state.lastFed < COOLDOWN_MS) return state;
       const item = state.food.find(f => f.id === action.id);
       if (!item || item.count === 0) return state;
       return {
@@ -184,6 +186,7 @@ function reducer(state: GameState, action: GameAction): GameState {
         food: state.food.map(f => f.id === action.id ? { ...f, count: f.count - 1 } : f),
         enot: addXP({ ...state.enot, hunger: clamp(state.enot.hunger + item.hunger), mood: clamp(state.enot.mood + item.mood) }, 10),
         totalFed: state.totalFed + 1,
+        lastFed: now,
       };
     }
 

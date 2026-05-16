@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, GameAction } from '@/types/game';
 
 interface Props {
@@ -6,9 +6,26 @@ interface Props {
   dispatch: (action: GameAction) => void;
 }
 
+const COOLDOWN_MS = 30 * 60 * 1000;
+
+function useFeedCooldown(lastFed: number) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
+  const remaining = Math.max(0, COOLDOWN_MS - (Date.now() - lastFed));
+  const ready = remaining === 0;
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  const label = mins > 0 ? `${mins}м ${String(secs).padStart(2, '0')}с` : `${secs}с`;
+  return { ready, label };
+}
+
 export default function StorageTab({ gameState, dispatch }: Props) {
-  const { food, enot } = gameState;
+  const { food, enot, lastFed } = gameState;
   const ownedFood = food.filter(f => f.count > 0);
+  const { ready, label: timerLabel } = useFeedCooldown(lastFed);
 
   return (
     <div className="flex flex-col gap-5 animate-slide-up">
@@ -44,6 +61,24 @@ export default function StorageTab({ gameState, dispatch }: Props) {
         </div>
       </div>
 
+      {/* Таймер кормления */}
+      {!ready && (
+        <div
+          className="card-game flex items-center gap-3"
+          style={{ borderColor: 'hsl(210,80%,58%/0.4)' }}
+        >
+          <span style={{ fontSize: 28 }}>⏳</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-white">Следующее кормление через</p>
+            <p className="text-xs mt-0.5" style={{ color: 'hsl(210,80%,58%)' }}>{timerLabel}</p>
+          </div>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{ background: 'hsl(210,80%,58%/0.15)', color: 'hsl(210,80%,58%)' }}>
+            🍖
+          </div>
+        </div>
+      )}
+
       {/* Еда */}
       {ownedFood.length === 0 ? (
         <div className="card-game flex flex-col items-center gap-3 py-10 text-center">
@@ -68,10 +103,17 @@ export default function StorageTab({ gameState, dispatch }: Props) {
                   </p>
                 </div>
                 <button
-                  className="btn-primary text-xs py-2 w-full"
+                  className="text-xs py-2 w-full rounded-2xl font-semibold transition-all active:scale-95"
+                  style={{
+                    background: ready ? 'hsl(var(--primary))' : 'hsl(var(--enot-surface2))',
+                    color: ready ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                    cursor: ready ? 'pointer' : 'not-allowed',
+                    opacity: ready ? 1 : 0.6,
+                  }}
+                  disabled={!ready}
                   onClick={() => dispatch({ type: 'FEED_ENOT', id: item.id })}
                 >
-                  Покормить
+                  {ready ? 'Покормить' : timerLabel}
                 </button>
               </div>
             ))}
